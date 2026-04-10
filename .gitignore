@@ -1,0 +1,28 @@
+# --- Rådata / känsliga källor ---
+*.parquet
+data/
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# --- macOS / IDE ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Matplotlib (lokal font-cache i projektet) ---
+.mplconfig/
+
+# --- Genererade artefakter från pipeline (ta bort om du vill versionera figurer/CSV) ---
+# student_features.csv
+# clustered_students.csv
+# *.png
