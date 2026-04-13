@@ -15,6 +15,14 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
+from project_paths import (
+    DEFAULT_CLUSTER_2D,
+    DEFAULT_CLUSTER_DEMOGRAPHICS,
+    DEFAULT_CLUSTERED_STUDENTS,
+    DEFAULT_ELBOW_PLOT,
+    DEFAULT_STUDENT_FEATURES,
+)
+
 # Välj vilka kolumner som ska ingå i klustring (måste finnas i student_features.csv).
 # Kommentera bort/ändra rader nedan — endast aktiva rader räknas.
 FEATURES = [
@@ -241,14 +249,14 @@ def main() -> None:
     p.add_argument(
         "--input",
         type=Path,
-        default=Path("student_features.csv"),
-        help="Indata-CSV från preprocess.py",
+        default=DEFAULT_STUDENT_FEATURES,
+        help="Indata-CSV från preprocess.py (data/processed/)",
     )
     p.add_argument(
         "--output",
         type=Path,
-        default=Path("clustered_students.csv"),
-        help="Utdata med cluster_id",
+        default=DEFAULT_CLUSTERED_STUDENTS,
+        help="Utdata med cluster_id (data/processed/)",
     )
     p.add_argument(
         "--min-lessons",
@@ -271,8 +279,8 @@ def main() -> None:
     p.add_argument(
         "--elbow-output",
         type=Path,
-        default=Path("elbow_plot.png"),
-        help="Var elbow-grafen sparas",
+        default=DEFAULT_ELBOW_PLOT,
+        help="Var elbow-grafen sparas (output/plots/)",
     )
     p.add_argument(
         "--random-state",
@@ -283,14 +291,14 @@ def main() -> None:
     p.add_argument(
         "--scatter-output",
         type=Path,
-        default=Path("cluster_2d_validation.png"),
+        default=DEFAULT_CLUSTER_2D,
         help="När exakt 2 features används: spara 2D scatter + OLS + Spearman (sätt tom för att hoppa över)",
     )
     p.add_argument(
         "--demographics-output",
         type=Path,
-        default=Path("cluster_demographics.png"),
-        help="Validering: figur cluster_id vs grade/gender",
+        default=DEFAULT_CLUSTER_DEMOGRAPHICS,
+        help="Validering: figur cluster_id vs grade/gender (output/plots/)",
     )
     args = p.parse_args()
 

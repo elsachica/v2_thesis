@@ -25,6 +25,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from project_paths import DEFAULT_RAW_PARQUET, DEFAULT_STUDENT_FEATURES
+
 CLUSTERING_FEATURES = [
     "punctuality_score",
     "morning_absence",
@@ -175,20 +177,41 @@ def build_student_features(
     rate_vt = np.where(vt_sched > 0, vt_abs / vt_sched, 0.0)
     trend_score = pd.Series(rate_vt - rate_ht, index=ids)
 
-    # invalid_ratio: (invalid_absence_minutes + NOCAUSE-minuter) / total absence_minutes_total
+    # invalid_ratio: ogiltiga minuter / total absence_minutes_total, klippt till [0, 1].
+    # Per rad: undvik dubbelräkning (invalid_absence_minutes + NOCAUSE på samma rad).
+    # NaN i invalid_absence_minutes behandlas som 0.
     if "invalid_absence_minutes" not in df.columns:
         raise ValueError("Saknad kolumn: invalid_absence_minutes (krävs för invalid_ratio)")
 
-    total_abs_min = df.groupby(id_col)["absence_minutes_total"].sum().reindex(ids, fill_value=0.0)
-    invalid_min = df.groupby(id_col)["invalid_absence_minutes"].sum().reindex(ids, fill_value=0.0)
-
-    # Policy: NOCAUSE räknas som ogiltigt (dold invalid). Vi använder absence_minutes_total
-    # på rader där cause_ext == NOCAUSE och present==0.
-    is_nocause_abs = df["present"].eq(0) & df["cause_ext"].astype(str).eq(NOCAUSE_VALUE)
-    nocause_min = (
-        df.loc[is_nocause_abs].groupby(id_col)["absence_minutes_total"].sum().reindex(ids, fill_value=0.0)
+    inv_abs = pd.to_numeric(df["invalid_absence_minutes"], errors="coerce").fillna(0.0).to_numpy(
+        dtype=np.float64
     )
-    invalid_ratio = _safe_ratio((invalid_min + nocause_min), total_abs_min).rename("invalid_ratio")
+    abs_row = pd.to_numeric(df["absence_minutes_total"], errors="coerce").fillna(0.0).to_numpy(
+        dtype=np.float64
+    )
+    is_nocause_abs = (
+        df["present"].eq(0) & df["cause_ext"].astype(str).eq(NOCAUSE_VALUE)
+    ).to_numpy()
+    # NOCAUSE (frånvaro): hela radens frånvaro räknas som ogiltig; annars kolumnen invalid_absence_minutes.
+    row_invalid_like = np.maximum(inv_abs, np.where(is_nocause_abs, abs_row, 0.0))
+    row_invalid_like = np.minimum(row_invalid_like, abs_row)
+    df["_row_invalid_like"] = row_invalid_like
+
+    invalid_numer = df.groupby(id_col)["_row_invalid_like"].sum().reindex(ids, fill_value=0.0)
+    total_abs_min = (
+        pd.to_numeric(df["absence_minutes_total"], errors="coerce")
+        .fillna(0.0)
+        .groupby(df[id_col])
+        .sum()
+        .reindex(ids, fill_value=0.0)
+    )
+    denom_ok = total_abs_min.to_numpy(dtype=float) > 0
+    ratio_raw = np.zeros(len(ids), dtype=float)
+    ratio_raw[denom_ok] = (
+        invalid_numer.to_numpy(dtype=float)[denom_ok] / total_abs_min.to_numpy(dtype=float)[denom_ok]
+    )
+    invalid_ratio = pd.Series(np.clip(ratio_raw, 0.0, 1.0), index=ids, name="invalid_ratio")
+    df.drop(columns=["_row_invalid_like"], inplace=True, errors="ignore")
 
     # fragmentation_index: partial-day vs full-day på dagsnivå (elev+datum).
     day = (
@@ -291,8 +314,18 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Aggregera lektions-parquet till elevnivå (student_features)."
     )
-    p.add_argument("--input", required=True, type=Path)
-    p.add_argument("--output", type=Path, default=Path("student_features.csv"))
+    p.add_argument(
+        "--input",
+        type=Path,
+        default=DEFAULT_RAW_PARQUET,
+        help=f"Parquet indata (default {DEFAULT_RAW_PARQUET})",
+    )
+    p.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_STUDENT_FEATURES,
+        help="Sparas i data/processed/ (default student_features.csv)",
+    )
     p.add_argument(
         "--min-reported-lessons",
         type=int,
@@ -304,7 +337,17 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    df = pd.read_parquet(args.input, engine="pyarrow")
+    inp = args.input.resolve()
+    if not inp.is_file():
+        raise SystemExit(
+            f"Saknas indatafil: {inp}\n\n"
+            f"Lägg din .parquet i data/raw/ som {DEFAULT_RAW_PARQUET.name}, "
+            "eller kör t.ex.:\n"
+            f"  PARQUET=\"/full/sökväg/din_fil.parquet\" ./scripts/run_project.sh\n"
+            "eller:\n"
+            f"  python3 src/preprocess.py --input /sökväg/din_fil.parquet\n"
+        )
+    df = pd.read_parquet(inp, engine="pyarrow")
     result, stats = build_student_features(
         df, min_reported_lessons=args.min_reported_lessons
     )

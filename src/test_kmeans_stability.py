@@ -23,6 +23,11 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
+from project_paths import (
+    DEFAULT_FEATURE_DISTRIBUTIONS,
+    DEFAULT_STABILITY_PCA,
+    DEFAULT_STUDENT_FEATURES,
+)
 from train_kmeans import FEATURES, load_and_clean, plot_2d_analysis
 
 SEEDS = (10, 20, 30, 40)
@@ -417,7 +422,12 @@ def main() -> None:
     p = argparse.ArgumentParser(
         description="KMeans stabilitet: k-sensitivitet (3,4,5), fyra seeds, bästa k får PCA/boxplot"
     )
-    p.add_argument("--input", type=Path, default=Path("student_features.csv"))
+    p.add_argument(
+        "--input",
+        type=Path,
+        default=DEFAULT_STUDENT_FEATURES,
+        help="Vanligtvis data/processed/student_features.csv",
+    )
     p.add_argument(
         "--min-lessons",
         type=int,
@@ -427,14 +437,14 @@ def main() -> None:
     p.add_argument(
         "--output-figure",
         type=Path,
-        default=Path("stability_test_pca.png"),
-        help="Basnamn; fil sparas som ..._k{bästa_k}.png",
+        default=DEFAULT_STABILITY_PCA,
+        help="Basnamn under output/plots/; fil sparas som ..._k{bästa_k}.png",
     )
     p.add_argument(
         "--output-boxplot",
         type=Path,
-        default=Path("feature_distributions.png"),
-        help="Basnamn; fil sparas som ..._k{bästa_k}.png",
+        default=DEFAULT_FEATURE_DISTRIBUTIONS,
+        help="Basnamn under output/plots/; fil sparas som ..._k{bästa_k}.png",
     )
     p.add_argument(
         "--k-list",
