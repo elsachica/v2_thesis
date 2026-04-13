@@ -19,11 +19,13 @@ from sklearn.preprocessing import StandardScaler
 # Kommentera bort/ändra rader nedan — endast aktiva rader räknas.
 FEATURES = [
     "morning_absence",
-    "reserved_absence_minutes_total",
-    # "punctuality_score",
-    # "afternoon_absence",
-    # "subject_variance",
-    # "trend_score",
+    "afternoon_absence",
+    "subject_variance",
+    "invalid_ratio",
+    "punctuality_score",
+    "trend_score",
+    "fragmentation_index",
+    "weekday_variance",
 ]
 
 RESERVED_TYPE_COLS = [
@@ -60,11 +62,78 @@ def load_and_clean(
         if _rate in FEATURES:
             df[_rate] = df[_rate].fillna(0)
 
+    for _ratio in (
+        "invalid_ratio",
+        "fragmentation_index",
+        "weekday_variance",
+        "punctuality_score",
+        "subject_variance",
+        "trend_score",
+    ):
+        if _ratio in FEATURES and _ratio in df.columns:
+            df[_ratio] = df[_ratio].fillna(0)
+
     all_zero = (df[FEATURES] == 0).all(axis=1)
     dropped = df.loc[all_zero].copy()
     df = df.loc[~all_zero].copy()
 
     return df, dropped
+
+
+def plot_cluster_demographics(
+    df: pd.DataFrame,
+    *,
+    out_path: Path,
+    cluster_col: str = "cluster_id",
+    grade_col: str = "grade",
+    gender_col: str = "gender",
+) -> None:
+    """
+    Valideringsfigur: visar om beteendearketyper (kluster) är överrepresenterade
+    i vissa årskurser eller könskategorier.
+
+    Vi plottar P(cluster | grupp), dvs. normaliserar per grade respektive per gender
+    så att varje stapel summerar till 1.0 inom gruppen.
+    """
+    need = {cluster_col, grade_col, gender_col}
+    missing = [c for c in need if c not in df.columns]
+    if missing:
+        raise ValueError(f"Saknade kolumner för demografiplott: {missing}")
+
+    ct_grade = pd.crosstab(df[grade_col], df[cluster_col], normalize="index").sort_index()
+    ct_gender = pd.crosstab(df[gender_col], df[cluster_col], normalize="index").sort_index()
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    ct_grade.plot(kind="bar", stacked=True, ax=axes[0], colormap="tab10")
+    axes[0].set_title("Cluster-fördelning per grade (normaliserat)")
+    axes[0].set_xlabel("grade")
+    axes[0].set_ylabel("andel")
+    axes[0].grid(True, axis="y", alpha=0.3)
+
+    ct_gender.plot(kind="bar", stacked=True, ax=axes[1], colormap="tab10")
+    axes[1].set_title("Cluster-fördelning per gender (normaliserat)")
+    axes[1].set_xlabel("gender")
+    axes[1].set_ylabel("andel")
+    axes[1].grid(True, axis="y", alpha=0.3)
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        title="cluster_id",
+        loc="lower center",
+        ncol=min(len(labels), 8),
+        frameon=False,
+    )
+    for ax in axes:
+        leg = ax.get_legend()
+        if leg is not None:
+            leg.remove()
+
+    plt.tight_layout(rect=[0, 0.08, 1, 1])
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
 
 
 def plot_2d_analysis(
@@ -217,6 +286,12 @@ def main() -> None:
         default=Path("cluster_2d_validation.png"),
         help="När exakt 2 features används: spara 2D scatter + OLS + Spearman (sätt tom för att hoppa över)",
     )
+    p.add_argument(
+        "--demographics-output",
+        type=Path,
+        default=Path("cluster_demographics.png"),
+        help="Validering: figur cluster_id vs grade/gender",
+    )
     args = p.parse_args()
 
     df, dropped_zero = load_and_clean(args.input, args.min_lessons)
@@ -265,6 +340,12 @@ def main() -> None:
             title=f"KMeans k={n_clusters} (seed={args.random_state})",
         )
         print(f"Sparade 2D-validering: {args.scatter_output.resolve()}")
+    else:
+        print("2D-validering: n/a (kräver exakt 2 features)")
+
+    if args.demographics_output is not None:
+        plot_cluster_demographics(df, out_path=args.demographics_output)
+        print(f"Sparade demografi-validering: {args.demographics_output.resolve()}")
 
     if n_clusters >= 2 and len(df) > n_clusters:
         sil = silhouette_score(X_scaled, labels, random_state=args.random_state)
@@ -275,13 +356,11 @@ def main() -> None:
     if "reserved_absence_minutes_total" in df.columns:
         val_table = (
             df.groupby("cluster_id", sort=True)["reserved_absence_minutes_total"]
-            .agg(mean_minutes="mean", n="count")
+            .agg(mean_minutes="mean", median_minutes="median", n="count")
             .reset_index()
         )
-        print("\nValidering: medel reserved_absence_minutes_total per kluster")
+        print("\nValidering (volym, ej input): reserved_absence_minutes_total per kluster")
         print(val_table.to_string(index=False))
-    else:
-        val_table = None
 
     summary = df.groupby("cluster_id", sort=True)[FEATURES].mean()
     counts = df.groupby("cluster_id").size().rename("n_students")

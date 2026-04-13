@@ -349,12 +349,15 @@ def _print_best_k_full(
             f"\nPCA explained variance ratio — PC1: {evr[0]:.6f}, PC2: {evr[1]:.6f}, summa: {evr.sum():.6f}"
         )
         comps = pca.components_
+        print("\nPCA loadings (tolkningstöd): top-3 features per axel (|loading| störst)")
         for pc_idx, name in enumerate(["PC1", "PC2"]):
-            loadings = comps[pc_idx]
-            j = int(np.argmax(np.abs(loadings)))
-            print(
-                f"  Störst bidrag till {name}: {FEATURES[j]} (loading={loadings[j]:.6f}, |.|={abs(loadings[j]):.6f})"
-            )
+            loadings = np.asarray(comps[pc_idx], dtype=float)
+            order = np.argsort(np.abs(loadings))[::-1]
+            top = order[: min(3, len(order))]
+            parts = [
+                f"{FEATURES[int(j)]} (loading={loadings[int(j)]:+.4f})" for j in top
+            ]
+            print(f"  {name}: " + ", ".join(parts))
 
         fig, axes = plt.subplots(2, 2, figsize=(10, 9))
         for ax, run_idx, seed in zip(axes.ravel(), range(len(SEEDS)), SEEDS):
@@ -375,7 +378,10 @@ def _print_best_k_full(
             ax.set_ylabel("PC2")
             ax.set_title(f"Run {run_idx + 1} (seed={seed})\nSilhouette={sil:.3f}")
             ax.grid(True, alpha=0.3)
-        plt.suptitle(f"PCA (k={k}) — färg = alignerat kluster-id", y=1.02)
+        plt.suptitle(
+            f"PCA (k={k}) — osynliga beteendemönster i 2D — färg = alignerat kluster-id",
+            y=1.02,
+        )
         plt.tight_layout()
         pca_path.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(pca_path, dpi=150, bbox_inches="tight")

@@ -26,3 +26,8 @@ build/
 # student_features.csv
 # clustered_students.csv
 # *.png
+
+*.csv
+grafs/
+grafs1/
+grafs3/
