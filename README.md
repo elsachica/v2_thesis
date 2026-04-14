@@ -75,7 +75,6 @@ Efter en lyckad körning har du följande **filer** (standardnamn):
 | Preprocess   | `data/processed/student_features.csv`       | En rad per elev med beteendefeatures + metadata.     |
 | Train KMeans | `data/processed/clustered_students.csv`     | Samma som ovan + `cluster_id`.                       |
 | Train KMeans | `output/plots/elbow_plot.png`               | Elbow-kurva för val av *k*.                          |
-| Train KMeans | `output/plots/cluster_demographics.png`     | Kluster vs årskurs/kön (normaliserat).               |
 | Stabilitet   | `output/plots/feature_distributions_k*.png` | Boxplots per kluster för varje feature.              |
 | Stabilitet   | `output/plots/stability_test_pca_k*.png`    | PCA (eller 2D-scatter om bara två features används). |
 
@@ -98,6 +97,6 @@ Alla skript har standardvägar till `data/processed/` och `output/plots/` (se `s
 ### Viktiga filer
 
 - `**src/preprocess.py`**: parquet → features (`invalid_ratio` m.m. finns kvar).
-- `**src/train_kmeans.py`**: K-means, elbow- och demografiplott.
+- `**src/train_kmeans.py`**: K-means och elbow-plot.
 - `**src/test_kmeans_stability.py**`: stabilitet, PCA/boxplots.
 

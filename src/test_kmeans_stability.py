@@ -33,8 +33,6 @@ from train_kmeans import FEATURES, load_and_clean, plot_2d_analysis
 SEEDS = (10, 20, 30, 40)
 SIZE_STD_FRAC = 0.05
 DRIFT_MSE_THRESHOLD = 0.05
-DEFAULT_K_LIST = (3, 4, 5)
-
 
 @dataclass
 class StabilityRunResult:
