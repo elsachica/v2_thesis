@@ -24,7 +24,7 @@ build/
 
 # --- Genererade artefakter från pipeline (ta bort om du vill versionera figurer/CSV) ---
 # student_features.csv
-# clustered_students.csv
+# clustered_students.parquet
 # *.png
 
 *.csv

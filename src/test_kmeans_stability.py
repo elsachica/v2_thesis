@@ -28,7 +28,7 @@ from project_paths import (
     DEFAULT_STABILITY_PCA,
     DEFAULT_STUDENT_FEATURES,
 )
-from train_kmeans import FEATURES, load_and_clean, plot_2d_analysis
+from train_kmeans import FEATURES, load_and_clean
 
 SEEDS = (10, 20, 30, 40)
 SIZE_STD_FRAC = 0.05
@@ -169,6 +169,73 @@ def _save_feature_boxplots(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
+
+
+def plot_2d_analysis(
+    df: pd.DataFrame,
+    x_feat: str,
+    y_feat: str,
+    labels: np.ndarray,
+    *,
+    out_path: Path | None = None,
+    title: str = "",
+    ax: plt.Axes | None = None,
+) -> float:
+    """
+    Scatter av råa x/y, färg = kluster, OLS-linje, Spearman rho i titel.
+    Returnerar Spearman rho (NaN om för få giltiga punkter).
+    """
+    x = df[x_feat].to_numpy(dtype=float)
+    y = df[y_feat].to_numpy(dtype=float)
+    mask = np.isfinite(x) & np.isfinite(y)
+    if mask.sum() >= 2:
+        rho = float(pd.Series(x[mask]).corr(pd.Series(y[mask]), method="spearman"))
+    else:
+        rho = float("nan")
+
+    own_fig = ax is None
+    if own_fig:
+        plt.figure(figsize=(8, 6))
+        ax = plt.gca()
+
+    if len(labels):
+        v0, v1 = float(np.min(labels)), float(np.max(labels))
+    else:
+        v0, v1 = 0.0, 1.0
+    sc = ax.scatter(
+        x,
+        y,
+        c=labels,
+        cmap="tab10",
+        alpha=0.65,
+        s=22,
+        vmin=v0,
+        vmax=v1 if v1 > v0 else v0 + 1,
+    )
+    if mask.sum() >= 2:
+        coef = np.polyfit(x[mask], y[mask], 1)
+        x_lo = float(np.nanmin(x[mask]))
+        x_hi = float(np.nanmax(x[mask]))
+        xs = np.linspace(x_lo, x_hi, 100)
+        ax.plot(xs, np.poly1d(coef)(xs), color="crimson", lw=2, zorder=5, label="OLS")
+        ax.legend(loc="best", fontsize=8)
+    ax.set_xlabel(x_feat)
+    ax.set_ylabel(y_feat)
+    rho_txt = f"{rho:.4f}" if rho == rho else "n/a"
+    ax.set_title(f"{title}\nSpearman rho = {rho_txt}".strip())
+    ax.grid(True, alpha=0.3)
+    fig = ax.get_figure()
+    if fig is not None:
+        fig.colorbar(sc, ax=ax, label="cluster_id", fraction=0.046, pad=0.04)
+
+    if own_fig:
+        plt.tight_layout()
+        if out_path is not None:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(out_path, dpi=150, bbox_inches="tight")
+        plt.close()
+
+    return rho
 
 
 def _output_with_k(path: Path, k: int) -> Path:
@@ -429,8 +496,8 @@ def main() -> None:
     p.add_argument(
         "--min-lessons",
         type=int,
-        default=100,
-        help="Ska matcha preprocess (min reported lessons; default 100)",
+        default=180,
+        help="Ska matcha preprocess (min reported lessons; default 180)",
     )
     p.add_argument(
         "--output-figure",

@@ -12,7 +12,7 @@ OUTPUT_PLOTS = _ROOT / "output" / "plots"
 
 DEFAULT_RAW_PARQUET = DATA_RAW / "lyckeboskolan_absence_lasaret2425_v6.parquet"
 DEFAULT_STUDENT_FEATURES = DATA_PROCESSED / "student_features.csv"
-DEFAULT_CLUSTERED_STUDENTS = DATA_PROCESSED / "clustered_students.csv"
+DEFAULT_CLUSTERED_STUDENTS = DATA_PROCESSED / "clustered_students.parquet"
 
 DEFAULT_ELBOW_PLOT = OUTPUT_PLOTS / "elbow_plot.png"
 DEFAULT_CLUSTER_2D = OUTPUT_PLOTS / "cluster_2d_validation.png"

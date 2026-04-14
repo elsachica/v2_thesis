@@ -30,7 +30,7 @@ Standardfiler och mappar (`data/raw/…`, `data/processed/…`, `output/plots/�
 v3_thesis/
 ├── data/
 │   ├── raw/              # original-parquet (standardnamn nedan)
-│   └── processed/        # student_features.csv, clustered_students.csv
+│   └── processed/        # student_features.csv, clustered_students.parquet
 ├── output/
 │   └── plots/            # Alla .png från pipeline
 ├── scripts/
@@ -73,15 +73,14 @@ Efter en lyckad körning har du följande **filer** (standardnamn):
 | Steg         | Filer                                       | Innehåll                                             |
 | ------------ | ------------------------------------------- | ---------------------------------------------------- |
 | Preprocess   | `data/processed/student_features.csv`       | En rad per elev med beteendefeatures + metadata.     |
-| Train KMeans | `data/processed/clustered_students.csv`     | Samma som ovan + `cluster_id`.                       |
-| Train KMeans | `output/plots/elbow_plot.png`               | Elbow-kurva för val av *k*.                          |
+| Train KMeans | `data/processed/clustered_students.parquet` | Samma som ovan + `cluster_id`.                       |
 | Stabilitet   | `output/plots/feature_distributions_k*.png` | Boxplots per kluster för varje feature.              |
 | Stabilitet   | `output/plots/stability_test_pca_k*.png`    | PCA (eller 2D-scatter om bara två features används). |
 
 
 I **terminalen** skrivs bland annat: datakvalitet från preprocess (antal elever, filtrering), **silhouette** för valt *k*, tabell med volym per kluster (`reserved_absence_minutes_total`, validering), **klusterprofiler** (medelvärde per feature per kluster), Pearson/Spearman-korrelation mellan features, stabilitetsmått (seeds, centroid-drift, PCA-loadings) och en kort **stabilitets-heuristik** (OK/VARNING). **Exakta tal** (antal elever, silhouette, klusterstorlekar) beror på din parquet och dina trösklar — dokumentera dem i uppsatsen när du kör, inte som fasta värden i README.
 
-**Utdata (kort):** `data/processed/*.csv` + alla relevanta `**output/plots/*.png`**.
+**Utdata (kort):** `data/processed/student_features.csv`, `data/processed/clustered_students.parquet` + alla relevanta `**output/plots/*.png`**.
 
 ### Manuellt (samma innehåll som skriptet)
 
@@ -97,6 +96,6 @@ Alla skript har standardvägar till `data/processed/` och `output/plots/` (se `s
 ### Viktiga filer
 
 - `**src/preprocess.py`**: parquet → features (`invalid_ratio` m.m. finns kvar).
-- `**src/train_kmeans.py`**: K-means och elbow-plot.
+- `**src/train_kmeans.py`**: K-means (lean) → `cluster_id` och Parquet-utdata.
 - `**src/test_kmeans_stability.py**`: stabilitet, PCA/boxplots.
 

@@ -8,17 +8,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 from project_paths import (
-    DEFAULT_CLUSTER_2D,
     DEFAULT_CLUSTERED_STUDENTS,
-    DEFAULT_ELBOW_PLOT,
     DEFAULT_STUDENT_FEATURES,
 )
 
@@ -85,104 +81,6 @@ def load_and_clean(
     return df, dropped
 
 
-def plot_2d_analysis(
-    df: pd.DataFrame,
-    x_feat: str,
-    y_feat: str,
-    labels: np.ndarray,
-    *,
-    out_path: Path | None = None,
-    title: str = "",
-    ax: plt.Axes | None = None,
-) -> float:
-    """
-    Scatter av råa x/y, färg = kluster, OLS-linje, Spearman rho i titel.
-    Returnerar Spearman rho (NaN om för få giltiga punkter).
-    """
-    x = df[x_feat].to_numpy(dtype=float)
-    y = df[y_feat].to_numpy(dtype=float)
-    mask = np.isfinite(x) & np.isfinite(y)
-    if mask.sum() >= 2:
-        rho = float(pd.Series(x[mask]).corr(pd.Series(y[mask]), method="spearman"))
-    else:
-        rho = float("nan")
-
-    own_fig = ax is None
-    if own_fig:
-        plt.figure(figsize=(8, 6))
-        ax = plt.gca()
-
-    if len(labels):
-        v0, v1 = float(np.min(labels)), float(np.max(labels))
-    else:
-        v0, v1 = 0.0, 1.0
-    sc = ax.scatter(
-        x,
-        y,
-        c=labels,
-        cmap="tab10",
-        alpha=0.65,
-        s=22,
-        vmin=v0,
-        vmax=v1 if v1 > v0 else v0 + 1,
-    )
-    if mask.sum() >= 2:
-        coef = np.polyfit(x[mask], y[mask], 1)
-        x_lo = float(np.nanmin(x[mask]))
-        x_hi = float(np.nanmax(x[mask]))
-        xs = np.linspace(x_lo, x_hi, 100)
-        ax.plot(xs, np.poly1d(coef)(xs), color="crimson", lw=2, zorder=5, label="OLS")
-        ax.legend(loc="best", fontsize=8)
-    ax.set_xlabel(x_feat)
-    ax.set_ylabel(y_feat)
-    rho_txt = f"{rho:.4f}" if rho == rho else "n/a"
-    ax.set_title(f"{title}\nSpearman rho = {rho_txt}".strip())
-    ax.grid(True, alpha=0.3)
-    fig = ax.get_figure()
-    if fig is not None:
-        fig.colorbar(sc, ax=ax, label="cluster_id", fraction=0.046, pad=0.04)
-
-    if own_fig:
-        plt.tight_layout()
-        if out_path is not None:
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            plt.savefig(out_path, dpi=150, bbox_inches="tight")
-        plt.close()
-
-    return rho
-
-
-def elbow_plot(
-    X_scaled: np.ndarray,
-    k_max: int,
-    out_path: Path,
-    random_state: int,
-) -> list[float]:
-    """Beräkna inertia för k=1..k_max och spara elbow-graf."""
-    inertias: list[float] = []
-    k_range = range(1, k_max + 1)
-    for k in k_range:
-        km = KMeans(
-            n_clusters=k,
-            random_state=random_state,
-            n_init=10,
-        )
-        km.fit(X_scaled)
-        inertias.append(float(km.inertia_))
-
-    plt.figure(figsize=(8, 5))
-    plt.plot(list(k_range), inertias, marker="o")
-    plt.xlabel("k (antal kluster)")
-    plt.ylabel("Within-Cluster Sum of Squares (inertia)")
-    plt.title("Elbow Method: KMeans inertia vs k")
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    return inertias
-
-
 def main() -> None:
     p = argparse.ArgumentParser(
         description="KMeans-klustring på student_features.csv"
@@ -202,7 +100,7 @@ def main() -> None:
     p.add_argument(
         "--min-lessons",
         type=int,
-        default=100,
+        default=180,
         help="Minsta antal lektioner (summa reserved_absence_type-rader) för att behålla eleven",
     )
     p.add_argument(
@@ -212,28 +110,10 @@ def main() -> None:
         help="Antal kluster i slutlig KMeans (justera efter elbow_plot.png)",
     )
     p.add_argument(
-        "--elbow-max-k",
-        type=int,
-        default=10,
-        help="Största k i elbow-kurvan (1 till detta värde)",
-    )
-    p.add_argument(
-        "--elbow-output",
-        type=Path,
-        default=DEFAULT_ELBOW_PLOT,
-        help="Var elbow-grafen sparas (output/plots/)",
-    )
-    p.add_argument(
         "--random-state",
         type=int,
         default=42,
         help="För reproducerbarhet (KMeans)",
-    )
-    p.add_argument(
-        "--scatter-output",
-        type=Path,
-        default=DEFAULT_CLUSTER_2D,
-        help="När exakt 2 features används: spara 2D scatter + OLS + Spearman (sätt tom för att hoppa över)",
     )
     args = p.parse_args()
 
@@ -250,14 +130,6 @@ def main() -> None:
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    elbow_plot(
-        X_scaled,
-        k_max=args.elbow_max_k,
-        out_path=args.elbow_output,
-        random_state=args.random_state,
-    )
-    print(f"Sparade elbow-plot: {args.elbow_output.resolve()}")
-
     n_clusters = args.k
     if n_clusters < 1:
         raise SystemExit("--k måste vara minst 1")
@@ -273,45 +145,9 @@ def main() -> None:
     df = df.copy()
     df["cluster_id"] = labels
 
-    if len(FEATURES) == 2 and args.scatter_output is not None:
-        plot_2d_analysis(
-            df,
-            FEATURES[0],
-            FEATURES[1],
-            labels,
-            out_path=args.scatter_output,
-            title=f"KMeans k={n_clusters} (seed={args.random_state})",
-        )
-        print(f"Sparade 2D-validering: {args.scatter_output.resolve()}")
-    else:
-        print("2D-validering: n/a (kräver exakt 2 features)")
-
-    if n_clusters >= 2 and len(df) > n_clusters:
-        sil = silhouette_score(X_scaled, labels, random_state=args.random_state)
-        print(f"Silhouette score (k={n_clusters}): {sil:.4f}")
-    else:
-        print("Silhouette score: n/a (kräver minst 2 kluster och fler än k elever)")
-
-    if "reserved_absence_minutes_total" in df.columns:
-        val_table = (
-            df.groupby("cluster_id", sort=True)["reserved_absence_minutes_total"]
-            .agg(mean_minutes="mean", median_minutes="median", n="count")
-            .reset_index()
-        )
-        print("\nValidering (volym, ej input): reserved_absence_minutes_total per kluster")
-        print(val_table.to_string(index=False))
-
-    summary = df.groupby("cluster_id", sort=True)[FEATURES].mean()
-    counts = df.groupby("cluster_id").size().rename("n_students")
-    summary = summary.join(counts, how="left")
-    print("\nKlusterprofiler (medelvärden av features, oskalade):")
-    print(summary.round(6).to_string())
-
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(args.output, index=False)
-    print(f"\nSparade: {args.output.resolve()}  (rader: {len(df)})")
-    if len(dropped_zero):
-        print(f"Antal rader borttagna (alla features = 0): {len(dropped_zero)}")
+    df.to_parquet(args.output, index=False, engine="pyarrow")
+    print(f"{args.output.resolve()}  (rader: {len(df)})")
 
 
 if __name__ == "__main__":
