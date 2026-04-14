@@ -10,7 +10,6 @@ Dessa kolumner (se `FEATURES` i `src/train_kmeans.py`) byggs i `preprocess.py` o
 
 - **Morning / afternoon absence:** Andel lektioner med “sann” frånvaro vars starttid är **före 09:00** respektive **efter 13:00** (lokal tid).
 - **Fragmentation index:** Andel **strö-/partialdagar** bland frånvarodagar som klassas som partial jämfört med hel dags frånvaro på **dagsnivå** (mäter “hackighet” i frånvaromönster; kräver tillräckligt många frånvarodagar för att vara meningsfullt — se kod).
-- **Invalid ratio:** Andel frånvarominuter som räknas som **ogiltig** (kolumnen `invalid_absence_minutes` + rader med **NOCAUSE**, utan dubbelräkning), dividerat med elevens totala frånvarominuter — alltså en **andel** mellan 0 och 1, oberoende av om eleven totalt varit borta kort eller länge (värdet säger hur stor del av frånvaron som är ogiltig, inte hur mycket frånvaro det finns i absoluta termer); klippt till [0, 1].
 - **Subject variance:** **Varians** i frånvaroandel mellan **skolämnen** för eleven (ojämn frånvaro över ämnen ger högre värde).
 - **Punctuality score:** Andel lektioner som registrerats som **sen ankomst** (`LATEARRIVAL`).
 - **Trend score:** Skillnad i **frånvaroandel** mellan **VT och HT** (positiv = relativt högre frånvaro VT).

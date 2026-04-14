@@ -32,7 +32,6 @@ CLUSTERING_FEATURES = [
     "morning_absence",
     "afternoon_absence",
     "subject_variance",
-    "invalid_ratio",
     "fragmentation_index",
     "weekday_variance",
     "trend_score",

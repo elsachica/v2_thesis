@@ -29,7 +29,6 @@ FEATURES = [
     "morning_absence",
     "afternoon_absence",
     "subject_variance",
-    "invalid_ratio",
     "punctuality_score",
     "trend_score",
     "fragmentation_index",
@@ -71,7 +70,6 @@ def load_and_clean(
             df[_rate] = df[_rate].fillna(0)
 
     for _ratio in (
-        "invalid_ratio",
         "fragmentation_index",
         "weekday_variance",
         "punctuality_score",
